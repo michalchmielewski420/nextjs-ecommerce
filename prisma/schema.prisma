@@ -3,15 +3,15 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db" // 🚀 Baza zapisze się jako zwykły plik dev.db w folderze prisma!
 }
 
 model Product {
-  id          String   @id @default(uuid())
+  id          String   @id @default(cuid()) // Używamy cuid dla SQLite
   name        String
   slug        String   @unique
-  price       Float    
+  price       Int      // Zostaje w groszach
   description String
   image_url   String
   category    String
