@@ -1,54 +1,49 @@
 import { NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
 import Stripe from 'stripe';
 
-const prisma = new PrismaClient();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
+  apiVersion: undefined as any, 
+});
 
-// Inicjalizujemy Stripe przy użyciu Twojego klucza prywatnego z pliku .env.local
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string);
-
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    // Odbieramy ID produktu przesłane z frontendu
-    const { productId } = await request.json();
+    const { items } = await req.json();
 
-    // 1. Wyciągamy produkt bezpośrednio z bazy danych Neon, aby zweryfikować cenę
-    const product = await prisma.product.findUnique({
-      where: { id: productId },
-    });
-
-    if (!product) {
-      return NextResponse.json({ error: 'Produkt nie istnieje' }, { status: 404 });
+    if (!items || items.length === 0) {
+      return NextResponse.json({ error: 'Koszyk jest pusty' }, { status: 400 });
     }
 
-    // 2. Tworzymy sesję płatności w Stripe
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'], // Płatność kartą
-      line_items: [
-        {
-          price_data: {
-            currency: 'pln',
-            product_data: {
-              name: product.name,
-              description: product.description,
-              images: [product.image_url],
-            },
-            unit_amount: product.price, // Cena w groszach prosto z bazy Neon!
+    // MAPOWANIE KOSZYKA z zabezpieczeniem zdjęć
+    const lineItems = items.map((item: any) => {
+      // 🚀 ZABEZPIECZENIE: Stripe przyjmuje tylko pełne linki internetowe zaczynające się od http/https
+      const hasValidImage = item.image_url && (item.image_url.startsWith('http://') || item.image_url.startsWith('https://'));
+      
+      return {
+        price_data: {
+          currency: 'pln',
+          product_data: {
+            name: item.name,
+            // Jeśli link jest prawidłowy, dodajemy zdjęcie. Jeśli nie – pomijamy je, żeby Stripe nie wywalił błędu.
+            images: hasValidImage ? [item.image_url] : [],
           },
-          quantity: 1,
+          unit_amount: Math.round(item.price), // Zaokrąglamy na wypadek problemów z liczbami zmiennoprzecinkowymi
         },
-      ],
-      mode: 'payment',
-      // Gdzie Stripe ma przekierować klienta po zakupie (wraca na localhost)
-      success_url: `${request.headers.get('origin')}/?success=true`,
-      cancel_url: `${request.headers.get('origin')}/product/${product.slug}?canceled=true`,
+        quantity: item.quantity,
+      };
     });
 
-    // Zwracamy adres URL do bezpiecznej płatności Stripe
-    return NextResponse.json({ url: session.url });
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ['card', 'blik', 'p24'],
+      line_items: lineItems,
+      mode: 'payment',
+      success_url: `${req.headers.get('origin')}/?success=true`,
+      cancel_url: `${req.headers.get('origin')}/cart`,
+    });
 
-  } catch (error: any) {
-    console.error('Błąd Stripe:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ url: session.url });
+  } catch (err: any) {
+    // 🔍 Podgląd błędu w terminalu VS Code (bardzo ułatwia diagnozę!)
+    console.error('💥 CRITICAL STRIPE ERROR:', err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

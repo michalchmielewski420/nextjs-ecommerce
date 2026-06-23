@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CartProvider } from "../lib/cart-context";
+import { CartProvider } from "@/lib/cart-context"; // 🚀 IMPORT PROVIDERA
 
 export const metadata: Metadata = {
-  title: "MEGA_SHOP 🛒",
-  description: "Nowoczesny sklep e-commerce",
+  title: "MEGA_SHOP",
+  description: "Mój super szybki sklep e-commerce",
 };
 
 export default function RootLayout({
@@ -14,8 +14,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pl">
-      {/* Usunęliśmy niestandardowe czcionki, teraz body korzysta z domyślnego, ładnego fontu systemowego */}
-      <body className="antialiased bg-slate-50 text-slate-900">
+      <body>
+        {/* Opałowujemy całą aplikację naszym koszykiem */}
         <CartProvider>
           {children}
         </CartProvider>

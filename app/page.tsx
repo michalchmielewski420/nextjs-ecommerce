@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
-import LikeButton from '@/components/LikeButton'; // 🚀 IMPORT NOWEGO PRZYCISKU
+import LikeButton from '@/components/LikeButton';
+import NavbarCartCounter from '@/components/NavbarCartCounter'; // 🚀 IMPORT LICZNIKA
 
 const prisma = new PrismaClient();
 
@@ -67,12 +68,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="mt-2 text-sm text-gray-500">Zarządzaj i kupuj produkty prosto z lokalnej bazy SQLite.</p>
           </div>
           <div className="flex items-center gap-4 mt-4 md:mt-0">
+            {/* 🚀 TUTAJ WSKAKUJE NASZ LICZNIK KOSZYKA */}
+            <NavbarCartCounter />
             <Link href="/admin/add" className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors">
               + Dodaj produkt
             </Link>
-            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-              ● Lokalna baza: SQLite
-            </span>
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <button type="submit" className="p-2 bg-white/90 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200">🗑️</button>
                 </form>
 
-                {/* ❤️ INTELIGENTNY PRZYCISK POLUBIENIA (Zamiast starego formularza) */}
+                {/* ❤️ PRZYCISK POLUBIENIA */}
                 <LikeButton productId={product.id} initialLikes={product.likes} />
 
                 <Link href={`/product/${product.slug}`} className="cursor-pointer aspect-square bg-gray-100 overflow-hidden relative block">

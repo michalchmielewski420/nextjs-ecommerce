@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import BuyButton from '@/components/BuyButton';
+import AddToCartButton from '@/components/AddToCartButton'; // 🚀 IMPORT NOWEGO PRZYCISKU
 
 const prisma = new PrismaClient();
 
@@ -64,7 +64,13 @@ export default async function ProductDetailPage({ params }: PageProps) {
             </div>
 
             <div className="mt-12 pt-6 border-t border-gray-100">
-              <BuyButton productId={product.id} />
+              {/* 🚀 WRZUCAMY PRZYCISK DODAWANIA DO KOSZYKA */}
+              <AddToCartButton product={{
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                image_url: product.image_url
+              }} />
               <p className="text-center text-xs text-gray-400 mt-3">
                 Darmowa wysyłka od 200 PLN • Płatności SQLite + Stripe
               </p>

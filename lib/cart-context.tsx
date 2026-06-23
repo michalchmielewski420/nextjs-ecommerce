@@ -1,18 +1,20 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product } from './data';
 
-// Definiujemy strukturę przedmiotu w koszyku (produkt + wybrana ilość)
+// Typ pojedynczego produktu w koszyku
 export interface CartItem {
-  product: Product;
+  id: string;
+  name: string;
+  price: number;
+  image_url: string;
   quantity: number;
 }
 
 interface CartContextType {
   items: CartItem[];
-  addToCart: (product: Product) => void;
-  removeFromCart: (productId: string) => void;
+  addToCart: (item: Omit<CartItem, 'quantity'>) => void;
+  removeFromCart: (id: string) => void;
   clearCart: () => void;
   cartCount: number;
 }
@@ -22,53 +24,45 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // 1. Po załadowaniu komponentu, wyciągamy koszyk z localStorage przeglądarki
+  // 1. Po załadowaniu strony wyciągamy koszyk z LocalStorage
   useEffect(() => {
     const savedCart = localStorage.getItem('mega_shop_cart');
     if (savedCart) {
-      try {
-        setItems(JSON.parse(savedCart));
-      } catch (e) {
-        console.error('Błąd parsowania koszyka:', e);
-      }
+      setItems(JSON.parse(savedCart));
     }
   }, []);
 
-  // 2. Za każdym razem, gdy zmienia się zawartość koszyka, zapisujemy go w localStorage
+  // 2. Za każdym razem gdy koszyk się zmienia, zapisujemy go w LocalStorage
   useEffect(() => {
-    if (items.length > 0 || localStorage.getItem('mega_shop_cart')) {
+    if (items.length > 0) {
       localStorage.setItem('mega_shop_cart', JSON.stringify(items));
+    } else {
+      localStorage.removeItem('mega_shop_cart');
     }
   }, [items]);
 
-  // 3. Funkcja dodawania do koszyka (jeśli produkt już jest, zwiększamy ilość)
-  const addToCart = (product: Product) => {
+  const addToCart = (newItem: Omit<CartItem, 'quantity'>) => {
     setItems((prevItems) => {
-      const existingItem = prevItems.find((item) => item.product.id === product.id);
+      const existingItem = prevItems.find((i) => i.id === newItem.id);
       if (existingItem) {
-        return prevItems.map((item) =>
-          item.product.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
+        // Jeśli produkt już jest w koszyku, zwiększamy ilość o 1
+        return prevItems.map((i) =>
+          i.id === newItem.id ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      return [...prevItems, { product, quantity: 1 }];
+      // Jeśli to nowy produkt, dodajemy go z ilością 1
+      return [...prevItems, { ...newItem, quantity: 1 }];
     });
   };
 
-  // 4. Usuwanie przedmiotu z koszyka
-  const removeFromCart = (productId: string) => {
-    setItems((prevItems) => prevItems.filter((item) => item.product.id !== productId));
+  const removeFromCart = (id: string) => {
+    setItems((prevItems) => prevItems.filter((item) => item.id !== id));
   };
 
-  // 5. Czyszczenie całego koszyka (np. po udanej płatności)
-  const clearCart = () => {
-    setItems([]);
-    localStorage.removeItem('mega_shop_cart');
-  };
+  const clearCart = () => setItems([]);
 
-  // 6. Licznik wszystkich sztuk w koszyku (wyświetlany w navbarze)
-  const cartCount = items.reduce((total, item) => total + item.quantity, 0);
+  // Licznik wszystkich sztuk w koszyku
+  const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
     <CartContext.Provider value={{ items, addToCart, removeFromCart, clearCart, cartCount }}>
@@ -77,11 +71,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Customowy hook, żeby łatwo wyciągać koszyk w dowolnym pliku
 export function useCart() {
   const context = useContext(CartContext);
-  if (!context) {
-    throw new Error('useCart musi być użyty wewnątrz CartProvider');
-  }
+  if (!context) throw new Error('useCart must be used within a CartProvider');
   return context;
 }
