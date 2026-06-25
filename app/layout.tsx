@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { CartProvider } from "@/lib/cart-context"; // 🚀 IMPORT PROVIDERA
+import { CartProvider } from "@/lib/cart-context";
+import { Toaster } from "react-hot-toast"; // 🚀 IMPORT KONTENERA TOASTÓW
 
 export const metadata: Metadata = {
   title: "MEGA_SHOP",
@@ -15,9 +16,10 @@ export default function RootLayout({
   return (
     <html lang="pl">
       <body>
-        {/* Opałowujemy całą aplikację naszym koszykiem */}
         <CartProvider>
           {children}
+          {/* 🚀 TEN KOMPONENT ODPOWIADA ZA WYŚWIETLANIE TOASTÓW W PRAWYM GÓRNYM ROGU */}
+          <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
         </CartProvider>
       </body>
     </html>

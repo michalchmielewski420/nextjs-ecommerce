@@ -2,19 +2,20 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Typ pojedynczego produktu w koszyku
 export interface CartItem {
   id: string;
   name: string;
   price: number;
   image_url: string;
   quantity: number;
+  stock?: number; // Dorzucamy opcjonalny stock do przedmiotu w koszyku
 }
 
 interface CartContextType {
   items: CartItem[];
   addToCart: (item: Omit<CartItem, 'quantity'>) => void;
   removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, newQuantity: number) => void; // 🚀 NOWA FUNKCJA
   clearCart: () => void;
   cartCount: number;
 }
@@ -24,7 +25,6 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
 
-  // 1. Po załadowaniu strony wyciągamy koszyk z LocalStorage
   useEffect(() => {
     const savedCart = localStorage.getItem('mega_shop_cart');
     if (savedCart) {
@@ -32,7 +32,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // 2. Za każdym razem gdy koszyk się zmienia, zapisujemy go w LocalStorage
   useEffect(() => {
     if (items.length > 0) {
       localStorage.setItem('mega_shop_cart', JSON.stringify(items));
@@ -45,12 +44,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prevItems) => {
       const existingItem = prevItems.find((i) => i.id === newItem.id);
       if (existingItem) {
-        // Jeśli produkt już jest w koszyku, zwiększamy ilość o 1
         return prevItems.map((i) =>
           i.id === newItem.id ? { ...i, quantity: i.quantity + 1 } : i
         );
       }
-      // Jeśli to nowy produkt, dodajemy go z ilością 1
       return [...prevItems, { ...newItem, quantity: 1 }];
     });
   };
@@ -59,13 +56,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prevItems) => prevItems.filter((item) => item.id !== id));
   };
 
+  // 🚀 LOGIKA PLUSIKA I MINUSIKA:
+  const updateQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      removeFromCart(id);
+      return;
+    }
+    setItems((prevItems) =>
+      prevItems.map((item) =>
+        item.id === id ? { ...item, quantity: newQuantity } : item
+      )
+    );
+  };
+
   const clearCart = () => setItems([]);
 
-  // Licznik wszystkich sztuk w koszyku
   const cartCount = items.reduce((acc, item) => acc + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items, addToCart, removeFromCart, clearCart, cartCount }}>
+    <CartContext.Provider value={{ items, addToCart, removeFromCart, updateQuantity, clearCart, cartCount }}>
       {children}
     </CartContext.Provider>
   );

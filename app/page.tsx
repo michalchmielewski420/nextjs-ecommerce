@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import LikeButton from '@/components/LikeButton';
 import NavbarCartCounter from '@/components/NavbarCartCounter';
+import AddToCartButton from '@/components/AddToCartButton'; // 🚀 IMPORT PRZYCISKU KOSZYKA
 
 const prisma = new PrismaClient();
 
@@ -16,6 +17,7 @@ interface ProductType {
   category: string;
   createdAt: Date;
   likes: number; 
+  stock: number; // Zabezpieczenie typu stock dla bazy danych
 }
 
 interface HomePageProps {
@@ -61,7 +63,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         
-        {/* 🎉 BANER SUKCESU ZAKUPÓW */}
+        {/* Baner sukcesu zakupów */}
         {isSuccess && (
           <div className="mb-8 p-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-4 shadow-xs">
             <span className="text-3xl">🎉</span>
@@ -121,16 +123,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               <div key={product.id} className="group flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 relative">
                 
                 {/* Kosz usuwania */}
-                {/* 🗑️ Kosz usuwania */}
-<form action={async function(formData) { 'use server'; await prisma.product.delete({ where: { id: formData.get('id') as string } }); revalidatePath('/'); }} className="absolute top-3 left-3 z-10">
-  <input type="hidden" name="id" value={product.id} />
-  <button type="submit" className="p-2 bg-white/90 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200">🗑️</button>
-</form>
+                <form action={async function(formData) { 'use server'; await prisma.product.delete({ where: { id: formData.get('id') as string } }); revalidatePath('/'); }} className="absolute top-3 left-3 z-10">
+                  <input type="hidden" name="id" value={product.id} />
+                  <button type="submit" className="p-2 bg-white/90 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200">🗑️</button>
+                </form>
 
-{/* 🚀 NOWY PRZYCISK: Ołówek edycji */}
-<Link href={`/admin/edit/${product.id}`} className="absolute top-3 left-14 z-10 p-2 bg-white/90 hover:bg-blue-50 hover:text-blue-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200 block text-xs">
-  ✏️
-</Link>
+                {/* Przycisk ołówka edycji */}
+                <Link href={`/admin/edit/${product.id}`} className="absolute top-3 left-14 z-10 p-2 bg-white/90 hover:bg-blue-50 hover:text-blue-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200 block text-xs">
+                  ✏️
+                </Link>
+
+                {/* Przycisk polubienia */}
                 <LikeButton productId={product.id} initialLikes={product.likes} />
 
                 <Link href={`/product/${product.slug}`} className="cursor-pointer aspect-square bg-gray-100 overflow-hidden relative block">
@@ -138,16 +141,39 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <span className="absolute top-14 left-3 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md text-xs font-semibold text-gray-700 shadow-sm">{product.category}</span>
                 </Link>
 
-                <div className="p-5 flex-1 flex flex-col">
+                <div className="p-5 flex-1 flex flex-col justify-between">
                   <div className="flex-1">
                     <Link href={`/product/${product.slug}`} className="cursor-pointer block group/title">
-                      <h2 className="text-lg font-bold text-gray-900 group-hover/title:text-blue-600 transition-colors duration-200">{product.name}</h2>
+                      <h2 className="text-base font-bold text-gray-900 group-hover/title:text-blue-600 transition-colors duration-200 line-clamp-2 min-h-12">{product.name}</h2>
                     </Link>
-                    <p className="mt-2 text-sm text-gray-500 line-clamp-3">{product.description}</p>
+                    <p className="mt-2 text-sm text-gray-500 line-clamp-2 min-h-10">{product.description}</p>
                   </div>
-                  <div className="mt-5 pt-4 border-t border-gray-50 flex items-center justify-between">
-                    <div className="text-xl font-black text-gray-900">{(product.price / 100).toFixed(2)} <span className="text-sm font-normal text-gray-500">PLN</span></div>
-                    <Link href={`/product/${product.slug}`} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">Szczegóły</Link>
+                  
+                  {/* Sekcja dolna: cena + akcje */}
+                  <div className="mt-5 pt-4 border-t border-gray-50 flex flex-col gap-3">
+                    <div className="text-xl font-black text-gray-900">
+                      {(product.price / 100).toFixed(2)} <span className="text-sm font-normal text-gray-500">PLN</span>
+                    </div>
+                    
+                    {/* 🚀 KOLEBKA PRZYCISKÓW: Zgrabny koszyk i szczegóły obok siebie */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <AddToCartButton product={{
+                          id: product.id,
+                          name: product.name,
+                          price: product.price,
+                          image_url: product.image_url,
+                          stock: product.stock
+                        }} />
+                      </div>
+                      <Link 
+                        href={`/product/${product.slug}`} 
+                        className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold rounded-xl transition-colors whitespace-nowrap text-center h-fit"
+                      >
+                        Szczegóły
+                      </Link>
+                    </div>
+
                   </div>
                 </div>
               </div>
