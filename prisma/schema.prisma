@@ -11,10 +11,19 @@ model Product {
   id          String   @id @default(cuid())
   name        String
   slug        String   @unique
-  price       Int      
+  price       Int      // cena w groszach
   description String
   image_url   String
   category    String
+  likes       Int      @default(0)
+  stock       Int      @default(10) // 🚀 NOWE POLE: domyślnie 10 sztuk na magazynie
   createdAt   DateTime @default(now())
-  likes       Int      @default(0) 
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  items     String   // Tutaj zapiszemy listę produktów jako tekst JSON (nazwy, ilości)
+  total     Int      // Łączna kwota zamówienia w groszach
+  status    String   @default("Opłacone")
+  createdAt DateTime @default(now())
 }

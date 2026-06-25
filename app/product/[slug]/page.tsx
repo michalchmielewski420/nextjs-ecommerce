@@ -66,11 +66,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
             <div className="mt-12 pt-6 border-t border-gray-100">
               {/* 🚀 WRZUCAMY PRZYCISK DODAWANIA DO KOSZYKA */}
               <AddToCartButton product={{
-                id: product.id,
-                name: product.name,
-                price: product.price,
-                image_url: product.image_url
-              }} />
+  id: product.id,
+  name: product.name,
+  price: product.price,
+  image_url: product.image_url,
+  stock: product.stock // 🚀 DOPISZ TĘ LINIJKĘ
+}} />
               <p className="text-center text-xs text-gray-400 mt-3">
                 Darmowa wysyłka od 200 PLN • Płatności SQLite + Stripe
               </p>

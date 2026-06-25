@@ -2,7 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import LikeButton from '@/components/LikeButton';
-import NavbarCartCounter from '@/components/NavbarCartCounter'; // 🚀 IMPORT LICZNIKA
+import NavbarCartCounter from '@/components/NavbarCartCounter';
 
 const prisma = new PrismaClient();
 
@@ -61,6 +61,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     <main className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         
+        {/* 🎉 BANER SUKCESU ZAKUPÓW */}
+        {isSuccess && (
+          <div className="mb-8 p-6 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl flex items-center gap-4 shadow-xs">
+            <span className="text-3xl">🎉</span>
+            <div>
+              <p className="font-extrabold text-base">Płatność Stripe zakończona sukcesem!</p>
+              <p className="text-sm text-emerald-600 mt-0.5">Zamówienie zostało przekazane do realizacji i zapisane w bazie admina.</p>
+            </div>
+            <Link href="/" className="ml-auto px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-colors">
+              Zamknij powiadomienie
+            </Link>
+          </div>
+        )}
+
         {/* Nagłówek */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between border-b border-gray-200 pb-6 mb-10">
           <div>
@@ -68,8 +82,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             <p className="mt-2 text-sm text-gray-500">Zarządzaj i kupuj produkty prosto z lokalnej bazy SQLite.</p>
           </div>
           <div className="flex items-center gap-4 mt-4 md:mt-0">
-            {/* 🚀 TUTAJ WSKAKUJE NASZ LICZNIK KOSZYKA */}
             <NavbarCartCounter />
+            <Link href="/admin/orders" className="px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl border border-blue-100 transition-colors">
+              📋 Zamówienia Admina
+            </Link>
             <Link href="/admin/add" className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors">
               + Dodaj produkt
             </Link>
@@ -104,13 +120,17 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {products.map((product) => (
               <div key={product.id} className="group flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 relative">
                 
+                {/* Kosz usuwania */}
                 {/* 🗑️ Kosz usuwania */}
-                <form action={async function(formData) { 'use server'; await prisma.product.delete({ where: { id: formData.get('id') as string } }); revalidatePath('/'); }} className="absolute top-3 left-3 z-10">
-                  <input type="hidden" name="id" value={product.id} />
-                  <button type="submit" className="p-2 bg-white/90 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200">🗑️</button>
-                </form>
+<form action={async function(formData) { 'use server'; await prisma.product.delete({ where: { id: formData.get('id') as string } }); revalidatePath('/'); }} className="absolute top-3 left-3 z-10">
+  <input type="hidden" name="id" value={product.id} />
+  <button type="submit" className="p-2 bg-white/90 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200">🗑️</button>
+</form>
 
-                {/* ❤️ PRZYCISK POLUBIENIA */}
+{/* 🚀 NOWY PRZYCISK: Ołówek edycji */}
+<Link href={`/admin/edit/${product.id}`} className="absolute top-3 left-14 z-10 p-2 bg-white/90 hover:bg-blue-50 hover:text-blue-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200 block text-xs">
+  ✏️
+</Link>
                 <LikeButton productId={product.id} initialLikes={product.likes} />
 
                 <Link href={`/product/${product.slug}`} className="cursor-pointer aspect-square bg-gray-100 overflow-hidden relative block">

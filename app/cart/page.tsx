@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/lib/cart-context';
+import { createOrderAction } from '@/app/actions/order'; // 🚀 IMPORT AKCJI
 
 export default function CartPage() {
   const { items, removeFromCart, clearCart } = useCart();
@@ -13,7 +14,6 @@ export default function CartPage() {
     0
   );
 
-  // 🚀 NOWA FUNKCJA: Wysyłanie koszyka do Stripe
   const handleCheckout = async () => {
     if (items.length === 0 || isLoading) return;
 
@@ -24,15 +24,16 @@ export default function CartPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ items }), // Wysyłamy całą tablicę produktów!
+        body: JSON.stringify({ items }),
       });
 
       const data = await response.json();
 
       if (data.url) {
-        // Czyścimy koszyk przed wyjściem do płatności, żeby po powrocie był pusty
+        // 🚀 ZAPISUJEMY ZAMÓWIENIE W LOKALNEJ BAZIE SQLITE PRZED PRZEKIEROWANIEM
+        await createOrderAction(items, totalPrice);
+
         clearCart();
-        // Przekierowanie klienta na bezpieczną stronę płatności Stripe
         window.location.href = data.url;
       } else {
         alert('Nie udało się wygenerować płatności Stripe.');
@@ -57,11 +58,7 @@ export default function CartPage() {
             <h1 className="text-3xl font-extrabold text-gray-900 mt-2">Twój Koszyk 🛒</h1>
           </div>
           {items.length > 0 && (
-            <button 
-              onClick={clearCart}
-              disabled={isLoading}
-              className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors cursor-pointer disabled:opacity-50"
-            >
+            <button onClick={clearCart} disabled={isLoading} className="text-xs font-bold text-red-500 hover:text-red-700 transition-colors cursor-pointer disabled:opacity-50">
               Wyczyść koszyk
             </button>
           )}
@@ -86,15 +83,9 @@ export default function CartPage() {
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-950 text-sm sm:text-base line-clamp-1">{item.name}</h3>
                     <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Ilość: <span className="font-bold text-gray-900">{item.quantity} szt.</span></p>
-                    <p className="text-sm font-black text-gray-950 mt-1">
-                      {((item.price * item.quantity) / 100).toFixed(2)} PLN
-                    </p>
+                    <p className="text-sm font-black text-gray-950 mt-1">{((item.price * item.quantity) / 100).toFixed(2)} PLN</p>
                   </div>
-                  <button 
-                    onClick={() => removeFromCart(item.id)}
-                    disabled={isLoading}
-                    className="p-2 text-gray-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all cursor-pointer border border-transparent hover:border-red-100 disabled:opacity-50"
-                  >
+                  <button onClick={() => removeFromCart(item.id)} disabled={isLoading} className="p-2 text-gray-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition-all cursor-pointer border border-transparent hover:border-red-100 disabled:opacity-50">
                     🗑️
                   </button>
                 </div>
@@ -118,11 +109,7 @@ export default function CartPage() {
                 </div>
               </div>
 
-              <button 
-                onClick={handleCheckout}
-                disabled={isLoading}
-                className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer text-center block disabled:bg-gray-400"
-              >
+              <button onClick={handleCheckout} disabled={isLoading} className="w-full mt-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-xs transition-colors cursor-pointer text-center block disabled:bg-gray-400">
                 {isLoading ? 'Przetwarzanie...' : 'Zapłać ze Stripe 💳'}
               </button>
             </div>
