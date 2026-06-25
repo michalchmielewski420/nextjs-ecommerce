@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { revalidatePath } from 'next/cache';
 import LikeButton from '@/components/LikeButton';
 import NavbarCartCounter from '@/components/NavbarCartCounter';
-import AddToCartButton from '@/components/AddToCartButton'; // 🚀 IMPORT PRZYCISKU KOSZYKA
+import AddToCartButton from '@/components/AddToCartButton';
+import SortDropdown from '@/components/SortDropdown'; // 🚀 IMPORT DYNAMICZNEGO DROPDOWNA
 
 const prisma = new PrismaClient();
 
@@ -17,7 +18,7 @@ interface ProductType {
   category: string;
   createdAt: Date;
   likes: number; 
-  stock: number; // Zabezpieczenie typu stock dla bazy danych
+  stock: number;
 }
 
 interface HomePageProps {
@@ -25,6 +26,7 @@ interface HomePageProps {
     success?: string; 
     category?: string;
     search?: string;
+    sort?: string;
   }>;
 }
 
@@ -33,7 +35,9 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const isSuccess = resolvedSearchParams.success === 'true';
   const selectedCategory = resolvedSearchParams.category;
   const searchQuery = resolvedSearchParams.search;
+  const currentSort = resolvedSearchParams.sort || 'newest';
 
+  // Filtrowanie (kategorie i wyszukiwarka)
   const whereConditions: any = {};
   if (selectedCategory && selectedCategory !== 'all') {
     whereConditions.category = selectedCategory;
@@ -45,9 +49,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ];
   }
 
+  // Logika sortowania bazy danych
+  let orderByCondition: any = { createdAt: 'desc' };
+  
+  if (currentSort === 'price_asc') {
+    orderByCondition = { price: 'asc' };
+  } else if (currentSort === 'price_desc') {
+    orderByCondition = { price: 'desc' };
+  } else if (currentSort === 'popular') {
+    orderByCondition = { likes: 'desc' };
+  }
+
   const products = (await prisma.product.findMany({
     where: whereConditions,
-    orderBy: { createdAt: 'desc' },
+    orderBy: orderByCondition,
   })) as ProductType[];
 
   const allProductsForCategories = (await prisma.product.findMany({ 
@@ -94,12 +109,16 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           </div>
         </div>
 
-        {/* Filtry */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        {/* BAR FILTRÓW I SORTOWANIA */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm mb-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          
           <div className="flex flex-wrap gap-2">
             {categories.map((cat: string) => {
               const isActive = selectedCategory === cat || (!selectedCategory && cat === 'all');
-              const linkUrl = cat === 'all' ? (searchQuery ? `/?search=${searchQuery}` : '/') : `/?category=${cat}${searchQuery ? `&search=${searchQuery}` : ''}`;
+              const linkUrl = cat === 'all' 
+                ? `/?sort=${currentSort}${searchQuery ? `&search=${searchQuery}` : ''}`
+                : `/?category=${cat}&sort=${currentSort}${searchQuery ? `&search=${searchQuery}` : ''}`;
+              
               return (
                 <Link key={cat} href={linkUrl} className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer ${isActive ? 'bg-blue-600 text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
                   {cat === 'all' ? 'Wszystko 🌟' : cat}
@@ -107,11 +126,23 @@ export default async function HomePage({ searchParams }: HomePageProps) {
               );
             })}
           </div>
-          <form method="GET" action="/" className="flex gap-2 w-full md:max-w-md">
-            {selectedCategory && selectedCategory !== 'all' && <input type="hidden" name="category" value={selectedCategory} />}
-            <input type="text" name="search" defaultValue={searchQuery || ''} placeholder="Wyszukaj produkt..." className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-500 text-gray-900" />
-            <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl cursor-pointer transition-colors">Szukaj</button>
-          </form>
+
+          <div className="flex flex-col sm:flex-row gap-3 w-full lg:max-w-2xl">
+            <form method="GET" action="/" className="flex flex-1 gap-2">
+              {selectedCategory && selectedCategory !== 'all' && <input type="hidden" name="category" value={selectedCategory} />}
+              <input type="hidden" name="sort" value={currentSort} />
+              <input type="text" name="search" defaultValue={searchQuery || ''} placeholder="Wyszukaj produkt..." className="w-full px-4 py-2 rounded-xl border border-gray-200 text-sm focus:outline-none focus:border-blue-500 text-gray-900" />
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl cursor-pointer transition-colors">Szukaj</button>
+            </form>
+
+            {/* 🚀 PODMIANA: Tutaj wywołujemy nasz bezpieczny komponent kliencki */}
+            <SortDropdown 
+              currentSort={currentSort} 
+              selectedCategory={selectedCategory} 
+              searchQuery={searchQuery} 
+            />
+
+          </div>
         </div>
 
         {/* Siatka produktów */}
@@ -122,18 +153,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             {products.map((product) => (
               <div key={product.id} className="group flex flex-col bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 relative">
                 
-                {/* Kosz usuwania */}
                 <form action={async function(formData) { 'use server'; await prisma.product.delete({ where: { id: formData.get('id') as string } }); revalidatePath('/'); }} className="absolute top-3 left-3 z-10">
                   <input type="hidden" name="id" value={product.id} />
                   <button type="submit" className="p-2 bg-white/90 hover:bg-red-50 hover:text-red-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200">🗑️</button>
                 </form>
 
-                {/* Przycisk ołówka edycji */}
                 <Link href={`/admin/edit/${product.id}`} className="absolute top-3 left-14 z-10 p-2 bg-white/90 hover:bg-blue-50 hover:text-blue-600 text-gray-400 rounded-xl shadow-xs cursor-pointer border border-gray-100 transition-all duration-200 block text-xs">
                   ✏️
                 </Link>
 
-                {/* Przycisk polubienia */}
                 <LikeButton productId={product.id} initialLikes={product.likes} />
 
                 <Link href={`/product/${product.slug}`} className="cursor-pointer aspect-square bg-gray-100 overflow-hidden relative block">
@@ -149,13 +177,11 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                     <p className="mt-2 text-sm text-gray-500 line-clamp-2 min-h-10">{product.description}</p>
                   </div>
                   
-                  {/* Sekcja dolna: cena + akcje */}
                   <div className="mt-5 pt-4 border-t border-gray-50 flex flex-col gap-3">
                     <div className="text-xl font-black text-gray-900">
                       {(product.price / 100).toFixed(2)} <span className="text-sm font-normal text-gray-500">PLN</span>
                     </div>
                     
-                    {/* 🚀 KOLEBKA PRZYCISKÓW: Zgrabny koszyk i szczegóły obok siebie */}
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
                         <AddToCartButton product={{
